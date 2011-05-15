@@ -1,0 +1,51 @@
+#!/usr/bin/env python2
+
+import sys
+import twitter
+import ConfigParser
+
+
+class Config:    
+    def __init__(self):
+        self.lastread=0
+    def write(self, filename):
+        #TODO implement
+        sys.stderr.write("Not yet implemented\n")
+    def read(self, filename):
+        #TODO implement
+        api = twitter.api()
+        sys.stderr.write("Not yet implemented\n")
+
+def post(config, argv):
+    
+
+def interpret(config, argv):
+    if argv[1] == "fetch":
+        post(config, argv)
+    elif argv[1] == "post":
+        post(config)
+    print argv[1]
+
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv
+    argc = len(argv)
+    
+    consumer_key='JYb65z4fc5XWl90bfYg'
+    consumer_secret='63jwb0Ure3lzZGcu5Zk0xFZgZlcZSdhGmpXfIW3M'
+
+    config = ConfigParser.SafeConfigParser()
+    try:
+        config.read('~/.pyeppiep')
+        config.get('pyeppiep', 'oauth_token')
+        config.get('pyeppiep', 'oauth_token_secret')
+    except ConfigParser.Error:
+        config.add_section('pyeppiep')
+        config.set('pyeppiep', 'oauth_token', )
+
+    interpret(config, argv)
+    myconfig.write('~/.pyeppiep')
+
+
+if __name__ == "__main__":
+    main()
