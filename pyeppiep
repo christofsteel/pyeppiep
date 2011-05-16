@@ -1,30 +1,47 @@
 #!/usr/bin/env python2
 
+import os
 import sys
 import twitter
 import ConfigParser
+import oauth2 as oauth
+import urlparse
+import re
+import time
 
 
-class Config:    
-    def __init__(self):
-        self.lastread=0
-    def write(self, filename):
-        #TODO implement
-        sys.stderr.write("Not yet implemented\n")
-    def read(self, filename):
-        #TODO implement
-        api = twitter.api()
-        sys.stderr.write("Not yet implemented\n")
+def printstatuses(statuses):
+    for s in statuses:
+        ids_string="\033[1;30m"+str(s.id)+"\033[m"
+        time_string="\033[1m"+time.strftime("%x - %X", time.localtime(s.GetCreatedAtInSeconds()))+"\033[m"
+        user_string="\033[1;32m"+s.user.screen_name+"\033[m"
+        text_string_=re.sub('@[A-Za-z0-9_]*', lambda mo: '\033[1;34m'+mo.group(0)+'\033[m', s.text)
+        text_string=re.sub('#[A-Za-z0-9_]*', lambda mo: '\033[1;31m'+mo.group(0)+'\033[m', text_string_)
+        print ids_string+" "+time_string+"\n\t"+user_string+": "+text_string+"\n"
 
-def post(config, argv):
+def post(api, argv):
+    api.PostUpdate(argv[2])
     
+def fetch(api, config, argv):
+    count = None
+    since_id = None
+    if len(argv) > 2:
+        count = argv[2]
+    else:
+	try:
+            since_id = config.get('pyeppiep', 'since_id')
+        except:
+            since_id = 0
+    statuses = api.GetFriendsTimeline(since_id=since_id, count=count)[::-1]  
+    printstatuses(statuses)
+    if len(statuses) > 1:
+        config.set('pyeppiep', 'since_id', statuses[len(statuses)-1].id)
 
-def interpret(config, argv):
+def interpret(api, config, argv):
     if argv[1] == "fetch":
-        post(config, argv)
+        fetch(api, config, argv)
     elif argv[1] == "post":
-        post(config)
-    print argv[1]
+        post(api, argv)
 
 def main(argv=None):
     if argv is None:
@@ -34,17 +51,56 @@ def main(argv=None):
     consumer_key='JYb65z4fc5XWl90bfYg'
     consumer_secret='63jwb0Ure3lzZGcu5Zk0xFZgZlcZSdhGmpXfIW3M'
 
-    config = ConfigParser.SafeConfigParser()
-    try:
-        config.read('~/.pyeppiep')
-        config.get('pyeppiep', 'oauth_token')
-        config.get('pyeppiep', 'oauth_token_secret')
-    except ConfigParser.Error:
-        config.add_section('pyeppiep')
-        config.set('pyeppiep', 'oauth_token', )
+    config = ConfigParser.RawConfigParser()
 
-    interpret(config, argv)
-    myconfig.write('~/.pyeppiep')
+    try:
+        config.read(os.path.expanduser("~")+'/.pyeppiep')
+	if config.get('pyeppiep', 'oauth_token_secret') == '':
+		raise ConfigParser.Error()
+	if config.get('pyeppiep', 'oauth_token') == '':
+		raise ConfigParser.Error()
+	if config.get('pyeppiep', 'screen_name') == '':
+		raise ConfigParser.Error()
+	if config.get('pyeppiep', 'user_id') == '':
+		raise ConfigParser.Error()
+    except ConfigParser.Error:
+        config = ConfigParser.RawConfigParser()
+        config.add_section('pyeppiep')
+        request_token_url = 'http://twitter.com/oauth/request_token'
+        access_token_url = 'http://twitter.com/oauth/access_token'
+        authorize_url = 'http://twitter.com/oauth/authorize'
+
+        consumer = oauth.Consumer(consumer_key, consumer_secret)
+        client = oauth.Client(consumer)
+        resp, content = client.request(request_token_url, "GET")
+        if resp['status'] != '200':
+            print "Invalid response "+resp['status']
+            sys.exit(1)
+
+        request_token = dict(urlparse.parse_qsl(content))
+        print "Go to the following link in your browser:"
+        print "%s?oauth_token=%s" % (authorize_url, request_token['oauth_token'])
+        print
+        oauth_verifier = raw_input('What is the PIN? ')
+
+        token = oauth.Token(request_token['oauth_token'],
+            request_token['oauth_token_secret'])
+        token.set_verifier(oauth_verifier)
+        client = oauth.Client(consumer, token)
+
+        resp, content = client.request(access_token_url, "POST")
+        access_token = dict(urlparse.parse_qsl(content))
+
+        config.set('pyeppiep', 'user_id', access_token['user_id'])
+        config.set('pyeppiep', 'screen_name', access_token['screen_name'])
+        config.set('pyeppiep', 'oauth_token', access_token['oauth_token'])
+        config.set('pyeppiep', 'oauth_token_secret', access_token['oauth_token_secret'])
+
+    api = twitter.Api(consumer_key=consumer_key, consumer_secret=consumer_secret, access_token_key=config.get('pyeppiep', 'oauth_token'), access_token_secret=config.get('pyeppiep', 'oauth_token_secret'))
+
+    interpret(api, config, argv)
+    with open(os.path.expanduser("~")+'/.pyeppiep', 'w') as configfile:
+        config.write(configfile)
 
 
 if __name__ == "__main__":
