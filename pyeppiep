@@ -9,22 +9,24 @@ import urlparse
 import re
 import time
 
-
+def printstatus(s):
+    ids_string="\033[1;30m"+str(s.id)+"\033[m"
+    time_string="\033[1m"+time.strftime("%x - %X", time.localtime(s.GetCreatedAtInSeconds()))+"\033[m"
+    user_string="\033[1;32m"+s.user.screen_name+"\033[m"
+    text_string_=re.sub('@[A-Za-z0-9_]*', lambda mo: '\033[1;34m'+mo.group(0)+'\033[m', s.text)
+    text_string=re.sub('#[A-Za-z0-9_]*', lambda mo: '\033[1;31m'+mo.group(0)+'\033[m', text_string_)
+    print ids_string+" "+time_string+"\n\t"+user_string+": "+text_string+"\n"
+    
 def printstatuses(statuses):
     for s in statuses:
-        ids_string="\033[1;30m"+str(s.id)+"\033[m"
-        time_string="\033[1m"+time.strftime("%x - %X", time.localtime(s.GetCreatedAtInSeconds()))+"\033[m"
-        user_string="\033[1;32m"+s.user.screen_name+"\033[m"
-        text_string_=re.sub('@[A-Za-z0-9_]*', lambda mo: '\033[1;34m'+mo.group(0)+'\033[m', s.text)
-        text_string=re.sub('#[A-Za-z0-9_]*', lambda mo: '\033[1;31m'+mo.group(0)+'\033[m', text_string_)
-        print ids_string+" "+time_string+"\n\t"+user_string+": "+text_string+"\n"
+        printstatus(s)
 
 def post(api, argv):
     api.PostUpdate(argv[2])
     
 def fetch(api, config, argv):
     count = None
-    since_id = None
+    since_id = 0
     if len(argv) > 2:
         count = argv[2]
     else:
@@ -32,10 +34,15 @@ def fetch(api, config, argv):
             since_id = config.get('pyeppiep', 'since_id')
         except:
             since_id = 0
-    statuses = api.GetFriendsTimeline(since_id=since_id, count=count)[::-1]  
-    printstatuses(statuses)
-    if len(statuses) > 1:
-        config.set('pyeppiep', 'since_id', statuses[len(statuses)-1].id)
+    if len(argv) > 3 and argv[2] == "id":
+        status_id = argv[3]
+      	status = api.GetStatus(status_id)
+        printstatus(status)
+    else:
+        statuses = api.GetFriendsTimeline(since_id=since_id, count=count)[::-1]  
+        printstatuses(statuses)
+        if len(statuses) > 1:
+            config.set('pyeppiep', 'since_id', statuses[len(statuses)-1].id)
 
 def interpret(api, config, argv):
     if argv[1] == "fetch":
