@@ -100,7 +100,7 @@ def usage():
     print "\t\tSend a direct message to user <username>"
 
 def interpret(api, config, argv):
-    if len(argv) == 0 or argv[1] == "fetch":
+    if len(argv) == 1 or argv[1] == "fetch":
         fetch(api, config, argv)
     elif argv[1] == "nr":
         nr(api, config)
