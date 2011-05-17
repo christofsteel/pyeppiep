@@ -12,44 +12,108 @@ import time
 def printstatus(s):
     ids_string="\033[1;30m"+str(s.id)+"\033[m"
     time_string="\033[1m"+time.strftime("%x - %X", time.localtime(s.GetCreatedAtInSeconds()))+"\033[m"
-    user_string="\033[1;32m"+s.user.screen_name+"\033[m"
+    try:
+        user_string="\033[1;32m"+s.user.screen_name+"\033[m"
+    except:
+        user_string="\033[1;32m"+s.sender_screen_name+"\033[m"
     text_string_=re.sub('@[A-Za-z0-9_]*', lambda mo: '\033[1;34m'+mo.group(0)+'\033[m', s.text)
     text_string=re.sub('#[A-Za-z0-9_]*', lambda mo: '\033[1;31m'+mo.group(0)+'\033[m', text_string_)
     print ids_string+" "+time_string+"\n\t"+user_string+": "+text_string+"\n"
     
-def printstatuses(statuses):
+def header(caption):
+    return "---\033[1m["+caption+"]\033[m"+("-"*(75-len(caption)))
+
+def printstatuses(statuses, caption):
+    print header(caption)
     for s in statuses:
         printstatus(s)
 
-def post(api, argv):
-    api.PostUpdate(argv[2])
+def post(api, message, status_id=None):
+    if status_id != None:
+        message = "@"+api.GetStatus(status_id).user.screen_name+": "+message
+    api.PostUpdate(message, status_id)
     
-def fetch(api, config, argv):
+def fetch(api, config, argv, showstatuses=True):
     count = None
     since_id = 0
+    statuses = []
+    dmessages = []
     if len(argv) > 2:
         count = argv[2]
     else:
 	try:
             since_id = config.get('pyeppiep', 'since_id')
+            msince_id = config.get('pyeppiep', 'msince_id')
+            dsince_id = config.get('pyeppiep', 'msince_id')
         except:
-            since_id = 0
+            since_id = None
+            msince_id = None
+            dsince_id = None
     if len(argv) > 3 and argv[2] == "id":
         status_id = argv[3]
       	status = api.GetStatus(status_id)
-        printstatus(status)
+        if showstatuses:
+            printstatus(status)
     else:
-        statuses = api.GetFriendsTimeline(since_id=since_id, count=count)[::-1]  
-        printstatuses(statuses)
-        if len(statuses) > 1:
+        statuses = api.GetFriendsTimeline(since_id=since_id, count=count)[::-1]
+        if showstatuses and len(statuses) > 0:
+            printstatuses(statuses, "Tweets")
             config.set('pyeppiep', 'since_id', statuses[len(statuses)-1].id)
+        if count == None and showstatuses:
+            mstatuses = api.GetMentions(since_id=msince_id)[::-1]
+            if len(mstatuses) > 0:
+                printstatuses(mstatuses, "Mentions")
+                config.set('pyeppiep', 'msince_id', mstatuses[len(mstatuses)-1].id)
+            dmessages = api.GetDirectMessages(since_id=dsince_id)[::-1]
+            if len(dmessages) > 0:
+                printstatuses(dmessages, "Direct Messages")
+                config.set('pyeppiep', 'dsince_id', dmessages[len(dmessages)-1].id)
+        return len(statuses)+len(dmessages)
+
+def nr(api, config):
+    print fetch(api, config, [], False)
+
+def follow(api, user):
+    api.CreateFriendship(user)
+
+def dm(api, user, message):
+    api.PostDirectMessage(user, message)
+
+def usage():
+    print "pyeppiep"
+    print "\tA twitter client in Python"
+    print
+    print "usage:"
+    print "\tpyeppiep"
+    print "\t\tFetches latest unread statuses, mentions and direct messages"
+    print "\tpyeppiep fetch [id <status_id> | <count>]"
+    print "\t\tFetches the status with id <status_id>, or the last <count> statuses you recieved. If neither <count> nor id <status_id> is given, then it fetches the last unread statuses, mentions and direct messages"
+    print "\tpyeppiep nr"
+    print "\t\tReturns the number of unread messages (statuses and direct messages)"
+    print "\tpyeppiep reply <status_id> <message>"
+    print "\t\tReply to status with <status_id>. The name of the user is automaticly inserted infront of the tweet"
+    print "\tpyeppiep post <message>"
+    print "\t\tPost <message>"
+    print "\tpyeppiep follow <username>"
+    print "\t\tFollow <username>"
+    print "\tpyeppiep dm <username> <message>"
+    print "\t\tSend a direct message to user <username>"
 
 def interpret(api, config, argv):
-    if argv[1] == "fetch":
+    if len(argv) == 0 or argv[1] == "fetch":
         fetch(api, config, argv)
-    elif argv[1] == "post":
-        post(api, argv)
-
+    elif argv[1] == "nr":
+        nr(api, config)
+    elif argv[1] == "reply" and len(argv) > 2:
+        post(api, argv[3], argv[2])
+    elif argv[1] == "post" and len(argv) > 2:
+        post(api, argv[2])
+    elif argv[1] == "follow" and len(argv) > 2:
+        follow(api, argv[2])
+    elif argv[1] == "dm" and len(argv) > 3:
+        dm(api, argv[2], argv[3])
+    else:
+        usage();
 def main(argv=None):
     if argv is None:
         argv = sys.argv

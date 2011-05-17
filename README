@@ -1,3 +1,18 @@
 pyeppiep
-    version 20110515
     A twitter client in Python
+
+usage:
+    pyeppiep
+        Fetches latest unread statuses, mentions and direct messages
+    pyeppiep fetch [id <status_id> | <count>]
+        Fetches the status with id <status_id>, or the last <count> statuses you recieved. If neither <count> nor id <status_id> is given, then it fetches the last unread statuses, mentions and direct messages
+    pyeppiep nr
+        Returns the number of unread messages (statuses and direct messages)
+    pyeppiep reply <status_id> <message>
+        Reply to status with <status_id>. The name of the user is automaticly inserted infront of the tweet
+    pyeppiep post <message>
+        Post <message>
+    pyeppiep follow <username>
+        Follow <username>
+    pyeppiep dm <username> <message>
+        Send a direct message to user <username>
