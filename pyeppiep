@@ -16,8 +16,8 @@ def printstatus(s):
         user_string="\033[1;32m"+s.user.screen_name+"\033[m"
     except:
         user_string="\033[1;32m"+s.sender_screen_name+"\033[m"
-    text_string_=re.sub('@[A-Za-z0-9_]*', lambda mo: '\033[1;34m'+mo.group(0)+'\033[m', s.text)
-    text_string=re.sub('#[A-Za-z0-9_]*', lambda mo: '\033[1;31m'+mo.group(0)+'\033[m', text_string_)
+    text_string_=re.sub('@[A-Za-z0-9_]+', lambda mo: '\033[1;34m'+mo.group(0)+'\033[m', s.text)
+    text_string=re.sub('#[A-Za-z0-9_]+', lambda mo: '\033[1;31m'+mo.group(0)+'\033[m', text_string_)
     print ids_string+" "+time_string+"\n\t"+user_string+": "+text_string+"\n"
     
 def header(caption):
@@ -114,6 +114,7 @@ def interpret(api, config, argv):
         dm(api, argv[2], argv[3])
     else:
         usage();
+
 def main(argv=None):
     if argv is None:
         argv = sys.argv
